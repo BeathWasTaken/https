@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const body = await req.text();
-  const params = new URLSearchParams(body);
+  const { refreshToken } = await req.json();
 
-  return new NextResponse(
-    JSON.stringify({
+  if (!refreshToken) {
+    return NextResponse.json(
+      { status: "error", message: "Missing token" },
+      { status: 401 }
+    );
+  }
+
+  return NextResponse.json(
+    {
       status: "success",
       message: "Account Validated.",
-      token: params.get("refreshToken") || "",
+      token: refreshToken,
       url: "",
       accountType: "growtopia",
-    }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html",
-      },
-    }
+    },
+    { status: 200 }
   );
 }
