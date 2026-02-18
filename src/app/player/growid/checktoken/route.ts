@@ -4,6 +4,9 @@ export async function POST(req: Request) {
   const body = await req.text();
   const params = new URLSearchParams(body);
 
+  console.log("Request body:", body);
+  console.log("Refresh token:", params.get("refreshToken"));
+
   return new NextResponse(
     JSON.stringify({
       status: "success",
