@@ -8,58 +8,51 @@ const GrowtopiaLogin: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [clicked, setClicked] = useState(false);
+  const [error, setError] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
+  const guestFormRef = useRef<HTMLFormElement | null>(null);
 
   // Get data from URL parameters
-  const serverName = searchParams.get('server_name') || "Growtopia";
-  const token = searchParams.get('data') || "";
+  const serverName = searchParams.get('server_name') || 'WipePs Private Server';
+  const token = searchParams.get('data') || '';
 
   useEffect(() => {
-    // Set document title and meta tags
+    // Set document title
     document.title = 'Growtopia Player Support';
-    
+
     // Set favicon
-    const setFavicon = (href: string) => {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    const faviconUrl =
+      'https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/images/growtopia.ico';
+
+    const setLink = (rel: string, type?: string) => {
+      let link = document.querySelector(`link[rel='${rel}']`) as HTMLLinkElement;
       if (!link) {
         link = document.createElement('link');
-        link.rel = 'icon';
-        document.getElementsByTagName('head')[0].appendChild(link);
+        link.rel = rel;
+        if (type) link.type = type;
+        document.head.appendChild(link);
       }
-      link.href = href;
+      link.href = faviconUrl;
     };
-    
-    setFavicon('https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/images/growtopia.ico');
-    
-    // Set shortcut icon
-    let shortcutIcon = document.querySelector("link[rel='shortcut icon']") as HTMLLinkElement;
-    if (!shortcutIcon) {
-      shortcutIcon = document.createElement('link');
-      shortcutIcon.rel = 'shortcut icon';
-      shortcutIcon.type = 'image/x-icon';
-      document.getElementsByTagName('head')[0].appendChild(shortcutIcon);
-    }
-    shortcutIcon.href = 'https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/images/growtopia.ico';
 
-    // Load saved GrowID from localStorage on component mount
+    setLink('icon', 'image/png');
+    setLink('shortcut icon', 'image/x-icon');
+
+    // Load saved GrowID from localStorage
     const savedGrowId = localStorage.getItem('growId');
-    if (savedGrowId) {
-      setGrowId(savedGrowId);
-    }
+    if (savedGrowId) setGrowId(savedGrowId);
 
-    // Keyboard event listeners for dev tools prevention
+    // Prevent dev tools keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F12' || 
-          e.keyCode === 123 ||
-          (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-          (e.ctrlKey && e.key === 'I') ||
-          (e.ctrlKey && e.shiftKey && e.key === 'C') ||
-          (e.ctrlKey && e.shiftKey && e.key === 'J') ||
-          (e.ctrlKey && e.key === 'U')) {
+      if (
+        e.key === 'F12' ||
+        e.keyCode === 123 ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) ||
+        (e.ctrlKey && e.key === 'U')
+      ) {
         e.preventDefault();
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
 
     // Mobile scaling observer
@@ -67,167 +60,262 @@ const GrowtopiaLogin: React.FC = () => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'DIV') {
-            const element = node as HTMLElement;
-            const screenWidth = window.screen.width;
-            if (screenWidth < 667) {
-              element.style.transform = 'scale(0.75)';
-              element.style.transformOrigin = '0 0';
-              element.style.webkitTransform = 'scale(0.75)';
-              element.style.webkitTransformOrigin = '0 0';
-              element.style.overflow = 'auto';
+            const el = node as HTMLElement;
+            if (window.screen.width < 667) {
+              el.style.transform = 'scale(0.75)';
+              el.style.transformOrigin = '0 0';
+              el.style.overflow = 'auto';
             }
           }
         });
       });
     });
+    observer.observe(document.body, { childList: true });
 
-    observer.observe(document.body, {
-      attributes: false,
-      childList: true,
-      characterData: false
-    });
-
-    // Handle anchor click prevention (replacing jQuery functionality)
+    // Anchor single-click guard (mirrors original jQuery behavior)
     const handleAnchorClick = (e: Event) => {
-      const target = e.target as HTMLAnchorElement;
-      if (clicked === false) {
+      if (!clicked) {
         setClicked(true);
-        return true;
+        return;
       }
-      target.setAttribute('onclick', 'return false;');
       e.preventDefault();
     };
-
     const anchors = document.querySelectorAll('a');
-    anchors.forEach(anchor => {
-      anchor.addEventListener('click', handleAnchorClick);
-    });
+    anchors.forEach((a) => a.addEventListener('click', handleAnchorClick));
 
-    // Cleanup
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       observer.disconnect();
-      anchors.forEach(anchor => {
-        anchor.removeEventListener('click', handleAnchorClick);
-      });
+      anchors.forEach((a) => a.removeEventListener('click', handleAnchorClick));
     };
   }, [clicked]);
 
-  const handleLogin = () => {
-    if (!growId.trim()) {
-      return;
+  /* ─── Validate & Submit ─── */
+  const validateForm = (): boolean => {
+    if (!growId.trim() || !password.trim()) {
+      setError('Please enter your Growtopia Name and Password.');
+      return false;
     }
-    
-    // Save GrowID to localStorage
+    setError('');
+    return true;
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
     localStorage.setItem('growId', growId);
-    
-    // Submit form
-    if (formRef.current) {
-      formRef.current.submit();
-    }
+    formRef.current?.submit();
   };
 
-  const handleGuest = () => {
-    setGrowId('');
-    setPassword('');
-    localStorage.setItem('growId', '');
-    
-    if (formRef.current) {
-      formRef.current.submit();
-    }
-  };
+  /* ─── Play as Guest ─── */
+  const playAsGuest = () => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://gtps.my.id/player/growid/login/validate';
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+    const tokenField = document.createElement('input');
+    tokenField.type = 'hidden';
+    tokenField.name = '_token';
+    tokenField.value = token;
+
+    const emailField = document.createElement('input');
+    emailField.type = 'hidden';
+    emailField.name = 'email';
+    emailField.value = 'guest@gmail.com';
+
+    form.appendChild(tokenField);
+    form.appendChild(emailField);
+    document.body.appendChild(form);
+    form.submit();
   };
 
   return (
-    <div className="card">
-      <div className="logo">
-        <h1>{serverName} Dashboard</h1>
-      </div>
-      
-      <p style={{ color: '#BBE1FA' }}>
-        Please enter your <b style={{ color: '#FFC045' }}>GrowID</b> and{' '}
-        <b style={{ color: '#FFC045' }}>Password</b> to log in to your existing account, or log in as a guest.
-      </p>
+    <>
+      {/* ── External stylesheets from original HTML ── */}
+      <link
+        media="all"
+        rel="stylesheet"
+        href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/faq-main.css"
+      />
+      <link
+        media="all"
+        rel="stylesheet"
+        href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/shop-custom.css"
+      />
+      <link
+        media="all"
+        rel="stylesheet"
+        href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/ingame-custom.css"
+      />
 
-      <form
-        ref={formRef}
-        method="POST"
-        action="/player/growid/login/validate"
-        acceptCharset="UTF-8"
-        id="loginForm"
-        className="mt-3"
-        onSubmit={handleLogin}
+      <style>{`
+        .modal-backdrop { background-color: rgba(0,0,0,0.1) !important; }
+        .modal-backdrop + div { overflow: auto; }
+        .modal-body, .content { padding: 0; }
+      `}</style>
+
+      {/* ── Main layout mirrors original HTML structure ── */}
+      <div
+        className="content"
+        style={{ backgroundColor: 'rgba(0,0,0,0)', width: '100%', height: '100%' }}
       >
-        <input name="_token" value={token} type="hidden" />
-        <input name="nameServer" value={serverName} type="hidden" />
-        
-        <div className="form">
-          <div className="growid">
-            <label htmlFor="loginGrowId"><strong>GrowID</strong></label>
-            <div className="input">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-person-fill" viewBox="0 0 16 16">
-                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-              </svg>
-              <input
-                type="text"
-                name="growId"
-                id="loginGrowId"
-                placeholder="Enter your growid"
-                value={growId}
-                onChange={(e) => setGrowId(e.target.value)}
-              />
+        <section className="common-box">
+          <div className="container">
+            <div className="row">
+              <div className="col-md-12 col-sm-12">
+                <div className="row">
+                  {/* Modal */}
+                  <div
+                    className="modal fade product-list-popup show"
+                    id="modalShow"
+                    role="dialog"
+                    aria-hidden="false"
+                    style={{ display: 'block' }}
+                  >
+                    <div className="modal-dialog modal-dialog-centered" role="document">
+                      <div className="modal-content">
+                        <div className="modal-body">
+                          <div className="content">
+                            <section className="common-box">
+                              <div className="container">
+                                {/* Title */}
+                                <div className="section-title center-align">
+                                  <h2>{serverName}</h2>
+                                </div>
+
+                                <div className="row div-content-center">
+                                  <div className="col-md-12 col-sm-12">
+
+                                    {/* ── Login Form ── */}
+                                    <form
+                                      id="loginForm"
+                                      ref={formRef}
+                                      method="POST"
+                                      action="https://gtps.my.id/player/growid/login/validate"
+                                      acceptCharset="UTF-8"
+                                      role="form"
+                                      onSubmit={handleLoginSubmit}
+                                    >
+                                      {/* Hidden token */}
+                                      <input
+                                        id="_token"
+                                        name="_token"
+                                        type="hidden"
+                                        value={token}
+                                      />
+
+                                      {/* Username */}
+                                      <div className="form-group">
+                                        <input
+                                          id="login-name"
+                                          className="form-control grow-text"
+                                          placeholder="Input your username..."
+                                          name="growId"
+                                          type="text"
+                                          required
+                                          value={growId}
+                                          onChange={(e) => setGrowId(e.target.value)}
+                                        />
+                                      </div>
+
+                                      {/* Password */}
+                                      <div className="form-group" style={{ position: 'relative' }}>
+                                        <input
+                                          id="password"
+                                          className="form-control grow-text"
+                                          placeholder="Input your password..."
+                                          name="password"
+                                          type={showPassword ? 'text' : 'password'}
+                                          required
+                                          value={password}
+                                          onChange={(e) => setPassword(e.target.value)}
+                                        />
+                                        {/* Toggle password visibility */}
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowPassword((v) => !v)}
+                                          style={{
+                                            position: 'absolute',
+                                            right: '10px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            color: '#888',
+                                          }}
+                                          aria-label="Toggle password visibility"
+                                        >
+                                          {showPassword ? (
+                                            /* eye-slash icon */
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                              <path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/>
+                                              <path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/>
+                                            </svg>
+                                          ) : (
+                                            /* eye icon */
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                              <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                                              <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+
+                                      {/* Validation error */}
+                                      {error && (
+                                        <div className="form-group text-center" style={{ color: 'red', fontSize: '0.875rem' }}>
+                                          {error}
+                                        </div>
+                                      )}
+
+                                      {/* Help link */}
+                                      <div className="form-group text-center forgot-password">
+                                        <a href="https://discord.gg/ZCQw89gahn" target="_blank" rel="noreferrer">
+                                          Need Help? Join our Discord!
+                                        </a>
+                                      </div>
+
+                                      {/* Login button */}
+                                      <div className="form-group text-center">
+                                        <input
+                                          className="btn btn-lg btn-primary grow-button"
+                                          type="submit"
+                                          value="Log in"
+                                        />
+                                      </div>
+
+                                      {/* Guest button */}
+                                      <div className="form-group text-center">
+                                        <button
+                                          type="button"
+                                          className="btn btn-lg btn-secondary grow-button"
+                                          onClick={playAsGuest}
+                                        >
+                                          Play as Guest
+                                        </button>
+                                      </div>
+                                    </form>
+
+                                  </div>
+                                </div>
+                              </div>
+                            </section>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* /Modal */}
+
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="password">
-            <label htmlFor="loginPassword"><strong>Password</strong></label>
-            <div className="input">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-key-fill" viewBox="0 0 16 16">
-                <path d="M3.5 11.5a3.5 3.5 0 1 1 3.163-5H14L15.5 8 14 9.5l-1-1-1 1-1-1-1 1-1-1-1 1H6.663a3.5 3.5 0 0 1-3.163 2M2.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
-              </svg>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                id="loginPassword"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                id="toggleLogPassword"
-                onClick={togglePasswordVisibility}
-                style={{ marginRight: '10px' }}
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-eye-slash-fill" viewBox="0 0 16 16">
-                    <path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/>
-                    <path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-eye-fill" viewBox="0 0 16 16">
-                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
-                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="button">
-            <button id="guestButton" type="button" onClick={handleGuest}>
-              Guest
-            </button>
-            <button id="loginButton" type="submit">
-              Login
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
+        </section>
+      </div>
+    </>
   );
 };
 
